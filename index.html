@@ -1,0 +1,288 @@
+<html><head><base href="https://websim.ai"><title>Calculadora Financeira Avançada</title><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><style>
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Helvetica, Arial, sans-serif;
+  background-color: #f0f0f0;
+  margin: 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+
+.container {
+  max-width: 400px;
+  width: 100%;
+}
+
+.calculator {
+  background-color: #000;
+  border-radius: 20px;
+  padding: 20px;
+  box-shadow: 0 0 20px rgba(0,0,0,0.2);
+}
+
+.display {
+  background-color: #222;
+  color: #fff;
+  font-size: 2.5em;
+  padding: 20px;
+  text-align: right;
+  border-radius: 10px;
+  margin-bottom: 20px;
+}
+
+.buttons {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+button {
+  border: none;
+  border-radius: 50%;
+  font-size: 1.5em;
+  height: 70px;
+  background-color: #333;
+  color: #fff;
+  cursor: pointer;
+  transition: background-color 0.3s;
+}
+
+button:hover {
+  background-color: #555;
+}
+
+button:active {
+  background-color: #777;
+}
+
+.operator {
+  background-color: #f1a33c;
+}
+
+.operator:hover {
+  background-color: #ffc66e;
+}
+
+.clear, .plus-minus, .percent {
+  background-color: #a5a5a5;
+  color: #000;
+}
+
+.clear:hover, .plus-minus:hover, .percent:hover {
+  background-color: #d9d9d9;
+}
+
+.zero {
+  grid-column: span 2;
+  border-radius: 35px;
+  text-align: left;
+  padding-left: 30px;
+}
+
+.exchange-rates {
+  background-color: #fff;
+  border-radius: 10px;
+  padding: 20px;
+  margin-top: 20px;
+  box-shadow: 0 0 10px rgba(0,0,0,0.1);
+}
+
+.exchange-rates h2 {
+  margin-top: 0;
+  color: #333;
+}
+
+.rate {
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 10px;
+}
+
+#chart {
+  width: 100%;
+  height: 300px;
+  margin-top: 20px;
+}
+</style></head><body><div class="container"><div class="calculator"><div class="display">0</div><div class="buttons"><button class="clear">AC</button><button class="plus-minus">+/-</button><button class="percent">%</button><button class="operator">÷</button><button>7</button><button>8</button><button>9</button><button class="operator">×</button><button>4</button><button>5</button><button>6</button><button class="operator">-</button><button>1</button><button>2</button><button>3</button><button class="operator">+</button><button class="zero">0</button><button>.</button><button class="operator">=</button></div></div><div class="exchange-rates"><h2>Taxas de Câmbio</h2><div class="rate"><span>USD/BRL:</span> <span id="usd-brl">--</span></div><div class="rate"><span>BTC/BRL:</span> <span id="btc-brl">--</span></div></div><div id="chart"></div></div><script src="https://cdn.jsdelivr.net/npm/chart.js"></script><script>
+// Calculadora
+let displayValue = '0';
+let firstOperand = null;
+let operator = null;
+let waitingForSecondOperand = false;
+
+const display = document.querySelector('.display');
+const buttons = document.querySelectorAll('button');
+
+function updateDisplay() {
+  display.textContent = displayValue;
+}
+
+function inputDigit(digit) {
+  if (waitingForSecondOperand) {
+    displayValue = digit;
+    waitingForSecondOperand = false;
+  } else {
+    displayValue = displayValue === '0' ? digit : displayValue + digit;
+  }
+}
+
+function inputDecimal() {
+  if (!displayValue.includes('.')) {
+    displayValue += '.';
+  }
+}
+
+function clear() {
+  displayValue = '0';
+  firstOperand = null;
+  operator = null;
+  waitingForSecondOperand = false;
+}
+
+function handleOperator(nextOperator) {
+  const inputValue = parseFloat(displayValue);
+  
+  if (operator && waitingForSecondOperand) {
+    operator = nextOperator;
+    return;
+  }
+
+  if (firstOperand === null) {
+    firstOperand = inputValue;
+  } else if (operator) {
+    const result = calculate(firstOperand, inputValue, operator);
+    displayValue = `${parseFloat(result.toFixed(7))}`;
+    firstOperand = result;
+  }
+
+  waitingForSecondOperand = true;
+  operator = nextOperator;
+}
+
+function calculate(firstOperand, secondOperand, operator) {
+  switch (operator) {
+    case '+':
+      return firstOperand + secondOperand;
+    case '-':
+      return firstOperand - secondOperand;
+    case '×':
+      return firstOperand * secondOperand;
+    case '÷':
+      return firstOperand / secondOperand;
+    default:
+      return secondOperand;
+  }
+}
+
+buttons.forEach(button => {
+  button.addEventListener('click', () => {
+    if (button.classList.contains('clear')) {
+      clear();
+      updateDisplay();
+      return;
+    }
+
+    if (button.classList.contains('operator')) {
+      handleOperator(button.textContent);
+      updateDisplay();
+      return;
+    }
+
+    if (button.classList.contains('decimal')) {
+      inputDecimal();
+      updateDisplay();
+      return;
+    }
+
+    if (button.classList.contains('plus-minus')) {
+      displayValue = (parseFloat(displayValue) * -1).toString();
+      updateDisplay();
+      return;
+    }
+
+    if (button.classList.contains('percent')) {
+      displayValue = (parseFloat(displayValue) / 100).toString();
+      updateDisplay();
+      return;
+    }
+
+    inputDigit(button.textContent);
+    updateDisplay();
+  });
+});
+
+// Taxas de câmbio e gráfico
+const usdBrlElement = document.getElementById('usd-brl');
+const btcBrlElement = document.getElementById('btc-brl');
+
+async function fetchExchangeRates() {
+  try {
+    const usdResponse = await fetch('https://api.exchangerate-api.com/v4/latest/USD');
+    const usdData = await usdResponse.json();
+    const usdBrlRate = usdData.rates.BRL;
+    usdBrlElement.textContent = usdBrlRate.toFixed(2);
+
+    const btcResponse = await fetch('https://api.coingecko.com/api/v3/simple/price?ids=bitcoin&vs_currencies=brl');
+    const btcData = await btcResponse.json();
+    const btcBrlRate = btcData.bitcoin.brl;
+    btcBrlElement.textContent = btcBrlRate.toFixed(2);
+
+    updateChart(usdBrlRate, btcBrlRate);
+  } catch (error) {
+    console.error('Erro ao buscar taxas de câmbio:', error);
+  }
+}
+
+let chart;
+
+function updateChart(usdBrlRate, btcBrlRate) {
+  const ctx = document.getElementById('chart').getContext('2d');
+  
+  if (chart) {
+    chart.data.datasets[0].data.push(usdBrlRate);
+    chart.data.datasets[1].data.push(btcBrlRate / 1000); // Dividindo por 1000 para melhor visualização
+    chart.data.labels.push(new Date().toLocaleTimeString());
+    
+    if (chart.data.labels.length > 30) {
+      chart.data.datasets[0].data.shift();
+      chart.data.datasets[1].data.shift();
+      chart.data.labels.shift();
+    }
+    
+    chart.update();
+  } else {
+    chart = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: [new Date().toLocaleTimeString()],
+        datasets: [{
+          label: 'USD/BRL',
+          data: [usdBrlRate],
+          backgroundColor: 'rgba(75, 192, 192, 0.6)',
+          borderColor: 'rgba(75, 192, 192, 1)',
+          borderWidth: 1
+        },
+        {
+          label: 'BTC/BRL (÷1000)',
+          data: [btcBrlRate / 1000],
+          backgroundColor: 'rgba(255, 159, 64, 0.6)',
+          borderColor: 'rgba(255, 159, 64, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        scales: {
+          y: {
+            beginAtZero: false
+          }
+        }
+      }
+    });
+  }
+}
+
+fetchExchangeRates();
+setInterval(fetchExchangeRates, 30000);
+</script></body></html>
